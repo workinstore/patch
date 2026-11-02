@@ -383,7 +383,7 @@ async function generatePage(id, fallback) {
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar"><div class="wrap"><span class="brand"><b>▲</b> PATCH<span>HUB</span></span></div></header>
+  <header class="topbar"><div class="wrap"><span class="brand"><b>▲</b> Workin' <span>Downloads</span></span></div></header>
   <main class="wrap">
     <form id="accessForm" class="gate hidden">
       <h1>Patch protegido</h1>
