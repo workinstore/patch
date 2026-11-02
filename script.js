@@ -26,7 +26,6 @@ const firebaseConfig = {
   messagingSenderId: "717458444908",
   appId: "1:717458444908:web:8b6d7ffb3831b6cb12be49"
 };
-
 /* O e-mail do admin NÃO fica no código: guardamos só o hash SHA-256 dele.
    Para trocar: gere o SHA-256 do novo e-mail (minúsculo) e cole abaixo. */
 const ADMIN_EMAIL_HASH = "5edfa2692bdacc5e6ee805c626c50cb44cebb065f092d9a1067d89f74dacd326";
@@ -37,7 +36,9 @@ async function sha256(t) {
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const db = firebase.database().ref("patches");
+const rootRef = firebase.database().ref();
+const db = rootRef.child("patches");
+const vault = rootRef.child("vault"); /* links de Patches com senha: vault/{id}/{chave da senha} */
 
 const $ = (id) => document.getElementById(id);
 let patches = {};
@@ -56,7 +57,7 @@ auth.onAuthStateChanged(async user => {
   if (user && !isAdmin) auth.signOut();
   $("adminPanel").classList.toggle("hidden", !isAdmin);
   $("btnAdmin").classList.toggle("hidden", isAdmin);
-  render();
+  subscribe();
 });
 
 $("btnAdmin").onclick = () => $("loginModal").classList.remove("hidden");
@@ -86,11 +87,43 @@ $("loginForm").onsubmit = async (e) => {
   }
 };
 
-/* ===== BANCO DE DADOS ===== */
-db.on("value", snap => {
-  patches = snap.val() || {};
-  render();
-}, err => { $("status").textContent = "Erro ao carregar: " + err.message; });
+/* ===== BANCO DE DADOS =====
+   Visitantes só podem ler os Patches visíveis (consulta exigida pelas regras).
+   O admin lê tudo. */
+let liveQuery = null, migrated = false;
+function subscribe() {
+  if (liveQuery) liveQuery.off();
+  patches = {}; render();
+  liveQuery = isAdmin ? db : db.orderByChild("visible").equalTo(true);
+  liveQuery.on("value", snap => {
+    patches = snap.val() || {};
+    render();
+    if (isAdmin && !migrated) { migrated = true; migrateLegacy().catch(err => console.error(err)); }
+  }, err => { $("status").textContent = "Erro ao carregar: " + err.message; $("status").classList.remove("hidden"); });
+}
+
+/* Converte automaticamente Patches do formato antigo (hash no banco) para o novo. */
+async function migrateLegacy() {
+  const updates = {};
+  Object.entries(patches).forEach(([id, p]) => {
+    if (typeof p.visible !== "boolean") updates["patches/" + id + "/visible"] = true;
+    if (!p.zipProtection) return;
+    const legacy = PatchTools.legacyKey(p.zipProtection);
+    updates["patches/" + id + "/zipProtection"] = null;
+    if (!legacy) return;
+    updates["patches/" + id + "/locked"] = legacy.lock;
+    updates["patches/" + id + "/links"] = null;
+    updates["vault/" + id] = { [legacy.key]: { links: p.links || [] } };
+  });
+  if (Object.keys(updates).length) await rootRef.update(updates);
+}
+
+/* Admin: lê a chave e os links guardados no cofre de um Patch com senha. */
+async function readVault(id) {
+  const snap = await vault.child(id).once("value");
+  const entries = Object.entries(snap.val() || {});
+  return entries.length ? { key: entries[0][0], links: entries[0][1].links || [] } : null;
+}
 
 function render() {
   const q = $("search").value.trim().toLowerCase();
@@ -120,15 +153,21 @@ $("grid").onclick = (e) => {
   const edit = e.target.dataset.edit, del = e.target.dataset.del;
   if (e.target.dataset.gen) return generatePage(e.target.dataset.gen);
   if (edit) return startEdit(edit);
-  if (del) { if (confirm("Excluir este Patch?")) db.child(del).remove(); return; }
+  if (del) { if (confirm("Excluir este Patch?")) rootRef.update({ ["patches/" + del]: null, ["vault/" + del]: null }).catch(err => alert("Erro ao excluir: " + err.message)); return; }
   const card = e.target.closest(".card");
   if (card) openDetail(card.dataset.id);
 };
 
 /* ===== DETALHES ===== */
+function linksHtml(links) {
+  return `<h4>Downloads (${links.length})</h4>` + (links.length ? links.map(l => `
+    <a class="dl" href="${safeUrl(l.url)}" target="_blank" rel="noopener noreferrer">
+      <span>${esc(l.label || "Download")}</span><b>BAIXAR ↓</b>
+    </a>`).join("") : `<p class="muted">Nenhum link disponível.</p>`);
+}
 function openDetail(id) {
   const p = patches[id]; if (!p) return;
-  const links = p.links || [];
+  const locked = PatchTools.validLock(p.locked);
   $("detailContent").innerHTML = `
     <div class="detail">
       <div class="dvd"><img src="${safeUrl(p.cover)}" alt="${esc(p.title)}"></div>
@@ -138,16 +177,37 @@ function openDetail(id) {
           <span class="code">${esc(p.code)}</span><span class="size">${esc(p.size)} ${esc(p.unit)}</span>
         </div>
         <p class="desc">${esc(p.desc)}</p>
-        <div class="downloads">
-          <h4>Downloads (${links.length})</h4>
-          ${links.length ? links.map(l => `
-            <a class="dl" href="${safeUrl(l.url)}" target="_blank" rel="noopener noreferrer">
-              <span>${esc(l.label || "Download")}</span><b>BAIXAR ↓</b>
-            </a>`).join("") : `<p class="muted">Nenhum link disponível.</p>`}
-        </div>
+        <div class="downloads" id="detailDownloads">${locked ? (isAdmin ? `<p class="muted">Carregando links...</p>` : `
+          <h4>Patch protegido</h4>
+          <form id="unlockForm">
+            <label>Senha de acesso<input id="unlockPass" type="password" autocomplete="current-password" required></label>
+            <button class="btn btn-primary" id="unlockBtn" type="submit" style="margin-top:10px">Liberar downloads</button>
+            <p id="unlockError" class="muted" role="alert" style="margin-top:8px"></p>
+          </form>`) : linksHtml(p.links || [])}</div>
       </div>
     </div>`;
   $("detailModal").classList.remove("hidden");
+  if (!locked) return;
+  if (isAdmin) {
+    readVault(id).then(v => { $("detailDownloads").innerHTML = linksHtml(v ? v.links : []); })
+      .catch(err => { $("detailDownloads").innerHTML = `<p class="muted">Erro: ${esc(err.message)}</p>`; });
+    return;
+  }
+  $("unlockForm").onsubmit = async (e) => {
+    e.preventDefault();
+    $("unlockBtn").disabled = true;
+    $("unlockError").textContent = "Verificando...";
+    try {
+      const key = await PatchTools.unlockKey($("unlockPass").value, p.locked);
+      const snap = await vault.child(id + "/" + key).once("value");
+      if (!snap.exists()) throw new Error("Senha incorreta. Tente novamente.");
+      $("detailDownloads").innerHTML = linksHtml(snap.val().links || []);
+    } catch (err) {
+      $("unlockError").textContent = err.message;
+      $("unlockPass").value = "";
+      $("unlockBtn").disabled = false;
+    }
+  };
 }
 $("btnCloseDetail").onclick = () => $("detailModal").classList.add("hidden");
 document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", e => { if (e.target === m) m.classList.add("hidden"); }));
@@ -165,7 +225,7 @@ function addLinkRow(label = "", url = "") {
 }
 $("btnAddLink").onclick = () => addLinkRow();
 
-let editingProtection = null;
+let editingLock = null;
 function setZipColor(color) {
   color = PatchTools.normalizeColor(color);
   const channels = PatchTools.rgb(color);
@@ -188,8 +248,8 @@ function syncPasswordFields() {
   const enabled = $("fProtected").checked;
   $("passwordFields").classList.toggle("hidden", !enabled);
   $("fPatchPassword").disabled = !enabled;
-  $("fPatchPassword").required = enabled && !editingProtection;
-  $("passwordHint").textContent = editingProtection ? "Deixe em branco para manter a senha atual; preencha para trocar." : "Informe a senha que será exigida para abrir o Patch.";
+  $("fPatchPassword").required = enabled && !editingLock;
+  $("passwordHint").textContent = editingLock ? "Deixe em branco para manter a senha atual; preencha para trocar." : "Informe a senha que será exigida para abrir o Patch.";
   if (!enabled) $("fPatchPassword").value = "";
 }
 $("fProtected").onchange = syncPasswordFields;
@@ -199,15 +259,21 @@ function resetForm() {
   $("linksList").innerHTML = "";
   addLinkRow();
   $("fVisible").checked = true;
-  editingProtection = null;
+  editingLock = null;
   setZipColor(PatchTools.GREEN);
   syncPasswordFields();
   $("formTitle").textContent = "Novo Patch";
 }
 $("btnCancel").onclick = resetForm;
 
-function startEdit(id) {
+async function startEdit(id) {
   const p = patches[id]; if (!p) return;
+  let links = p.links || [];
+  editingLock = PatchTools.validLock(p.locked) ? p.locked : null;
+  if (editingLock) {
+    try { const v = await readVault(id); links = v ? v.links : []; }
+    catch (err) { alert("Erro ao carregar os links: " + err.message); return; }
+  }
   $("patchId").value = id;
   $("fTitle").value = p.title || "";
   $("fCode").value = p.code || "";
@@ -217,12 +283,11 @@ function startEdit(id) {
   $("fDesc").value = p.desc || "";
   $("fVisible").checked = p.visible !== false;
   setZipColor(p.zipColor);
-  editingProtection = p.zipProtection || null;
-  $("fProtected").checked = !!editingProtection;
+  $("fProtected").checked = !!editingLock;
   $("fPatchPassword").value = "";
   syncPasswordFields();
   $("linksList").innerHTML = "";
-  (p.links?.length ? p.links : [{}]).forEach(l => addLinkRow(l.label, l.url));
+  (links.length ? links : [{}]).forEach(l => addLinkRow(l.label, l.url));
   $("formTitle").textContent = "Editando: " + p.title;
   $("adminPanel").scrollIntoView({ behavior: "smooth" });
 }
@@ -243,10 +308,12 @@ $("patchForm").onsubmit = async (e) => {
   saveButtons.forEach(button => button.disabled = true);
   $("patchForm").setAttribute("aria-busy", "true");
   try {
-  let protection = null;
+  const savedId = id || db.push().key;
+  let lock = null, key = null;
   if ($("fProtected").checked) {
-    protection = $("fPatchPassword").value ? await PatchTools.createProtection($("fPatchPassword").value) : editingProtection;
-    if (!PatchTools.validProtection(protection)) throw new Error("Informe uma nova senha para o Patch.");
+    if ($("fPatchPassword").value) ({ lock, key } = await PatchTools.createLock($("fPatchPassword").value));
+    else if (id && editingLock) { const v = await readVault(id); lock = editingLock; key = v && v.key; }
+    if (!lock || !key) throw new Error("Informe uma nova senha para o Patch.");
   }
   const data = {
     title: $("fTitle").value.trim(),
@@ -255,15 +322,18 @@ $("patchForm").onsubmit = async (e) => {
     size: parseFloat($("fSize").value),
     unit: $("fUnit").value,
     desc: $("fDesc").value.trim(),
-    links,
+    links: lock ? null : links,
     visible: $("fVisible").checked,
     zipColor: PatchTools.normalizeColor($("fColor").value),
-    zipProtection: protection,
-    updatedAt: Date.now()
+    locked: lock,
+    updatedAt: Date.now(),
+    createdAt: (id && patches[id] && patches[id].createdAt) || Date.now()
   };
-    let savedId = id;
-    if (id) await db.child(id).update(data);
-    else savedId = (await db.push({ ...data, createdAt: Date.now() })).key;
+    /* Patch e cofre gravados juntos; senha e hash nunca vão para o banco. */
+    await rootRef.update({
+      ["patches/" + savedId]: data,
+      ["vault/" + savedId]: lock ? { [key]: { links } } : null
+    });
     const gen = e.submitter && e.submitter.id === "btnSaveGen";
     resetForm();
     if (gen) await generatePage(savedId, data); else alert("Patch salvo com sucesso!");
@@ -359,7 +429,7 @@ firebase.initializeApp(firebaseConfig);
   $("year").textContent = new Date().getFullYear();
   PatchTools.applyTheme(PatchTools.GREEN);
 
-  var current = null, unlocked = false;
+  var current = null, unlockedKey = null, unlockedLinks = null;
 
   function showStatus(text) {
     $("status").textContent = text;
@@ -367,8 +437,7 @@ firebase.initializeApp(firebaseConfig);
     $("patch").classList.add("hidden");
   }
 
-  function render(p) {
-    var links = p.links || [];
+  function render(p, links) {
     document.title = p.title + " — Download";
     $("title").textContent = p.title;
     $("cover").src = safe(p.cover);
@@ -395,13 +464,28 @@ firebase.initializeApp(firebaseConfig);
     var p = current;
     if (!p) { $("accessForm").classList.add("hidden"); showStatus("Patch não encontrado ou removido."); return; }
     PatchTools.applyTheme(p.zipColor);
-    if (p.zipProtection && !unlocked) {
+    if (!PatchTools.validLock(p.locked)) { render(p, p.links || []); return; }
+    if (!unlockedLinks) {
       $("status").classList.add("hidden");
       $("patch").classList.add("hidden");
       $("accessForm").classList.remove("hidden");
       return;
     }
-    render(p);
+    render(p, unlockedLinks);
+  }
+
+  /* Os links de Patches com senha ficam em vault/{id}/{chave}. A chave só é
+     obtida a partir da senha correta; senha errada = caminho inexistente. */
+  function openVault(key) {
+    return new Promise(function (resolve, reject) {
+      var first = true;
+      firebase.database().ref("vault/" + PATCH_ID + "/" + key).on("value", function (snap) {
+        var v = snap.val();
+        if (first) { first = false; resolve(!!v); }
+        unlockedLinks = v ? (v.links || []) : null;
+        if (!first && current) update();
+      }, function (err) { if (first) { first = false; reject(err); } });
+    });
   }
 
   firebase.database().ref("patches/" + PATCH_ID).on("value", function (snap) {
@@ -411,21 +495,26 @@ firebase.initializeApp(firebaseConfig);
 
   $("accessForm").onsubmit = async function (event) {
     event.preventDefault();
-    if ($("accessButton").disabled || !current) return;
+    if ($("accessButton").disabled || !current || !PatchTools.validLock(current.locked)) return;
     $("accessError").textContent = "";
     $("accessButton").disabled = true;
     $("accessPassword").disabled = true;
     $("verifyState").classList.remove("hidden");
     $("accessForm").setAttribute("aria-busy", "true");
     try {
-      if (!current.zipProtection || await PatchTools.verifyPassword($("accessPassword").value, current.zipProtection)) {
-        $("accessPassword").value = ""; unlocked = true; update();
-      } else { $("accessError").textContent = "Senha incorreta. Tente novamente."; $("accessPassword").value = ""; }
+      var key = await PatchTools.unlockKey($("accessPassword").value, current.locked);
+      if (unlockedKey) firebase.database().ref("vault/" + PATCH_ID + "/" + unlockedKey).off();
+      unlockedKey = key;
+      if (await openVault(key)) { $("accessPassword").value = ""; update(); }
+      else {
+        firebase.database().ref("vault/" + PATCH_ID + "/" + key).off(); unlockedKey = null;
+        $("accessError").textContent = "Senha incorreta. Tente novamente."; $("accessPassword").value = "";
+      }
     } catch (error) { $("accessError").textContent = error.message; }
     finally {
       $("accessButton").disabled = false; $("accessPassword").disabled = false;
       $("verifyState").classList.add("hidden"); $("accessForm").removeAttribute("aria-busy");
-      if (!unlocked) $("accessPassword").focus();
+      if (!unlockedLinks) $("accessPassword").focus();
     }
   };
 })();

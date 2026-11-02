@@ -35,24 +35,27 @@ function patchToolsExport() {
     const key = await root.crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
     return hex(new Uint8Array(await root.crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:bytes(salt),iterations},key,256)));
   }
-  function validProtection(p) {
-    return p && p.version === 1 && p.iterations === 210000 && /^[a-f0-9]{32}$/.test(p.salt) && Array.isArray(p.hashParts) && p.hashParts.length === 8 && p.hashParts.every(v => /^[a-f0-9]{8}$/.test(v));
+  /* A senha nunca é guardada (nem o hash). O PBKDF2 da senha vira a CHAVE secreta
+     do caminho vault/{id}/{chave} onde ficam os links. Senha errada = caminho inexistente. */
+  function validLock(l) {
+    return !!l && l.version === 1 && l.iterations === 210000 && /^[a-f0-9]{32}$/.test(l.salt || '');
   }
-  async function createProtection(password) {
+  async function createLock(password) {
     requireCrypto();
     if (!password) throw new Error('Informe a senha do Patch.');
-    const salt = hex(root.crypto.getRandomValues(new Uint8Array(16)));
-    const digest = await derive(password, salt, 210000);
-    return {version:1,salt,iterations:210000,hashParts:digest.match(/.{8}/g).reverse()};
+    const lock = {version:1, salt:hex(root.crypto.getRandomValues(new Uint8Array(16))), iterations:210000};
+    return {lock, key: await derive(password, lock.salt, lock.iterations)};
   }
-  async function verifyPassword(password, protection) {
-    if (!validProtection(protection)) throw new Error('Configuração de senha inválida. Gere novamente o ZIP.');
-    const digest = await derive(password, protection.salt, protection.iterations);
-    const expected = protection.hashParts.slice().reverse().join('');
-    let difference = 0;
-    for (let i=0; i<digest.length; i++) difference |= digest.charCodeAt(i) ^ expected.charCodeAt(i);
-    return difference === 0;
+  async function unlockKey(password, lock) {
+    if (!validLock(lock)) throw new Error('Configuração de senha inválida.');
+    if (!password) throw new Error('Informe a senha.');
+    return derive(password, lock.salt, lock.iterations);
   }
-  root.PatchTools = {GREEN,CYAN,normalizeColor,rgb,fromRgb,hueColor,colorHue,applyTheme,validProtection,createProtection,verifyPassword};
+  /* Converte o formato antigo (hash salvo no banco) para o novo, sem precisar da senha. */
+  function legacyKey(p) {
+    const ok = p && p.version === 1 && p.iterations === 210000 && /^[a-f0-9]{32}$/.test(p.salt) && Array.isArray(p.hashParts) && p.hashParts.length === 8 && p.hashParts.every(v => /^[a-f0-9]{8}$/.test(v));
+    return ok ? {lock:{version:1, salt:p.salt, iterations:210000}, key:p.hashParts.slice().reverse().join('')} : null;
+  }
+  root.PatchTools = {GREEN,CYAN,normalizeColor,rgb,fromRgb,hueColor,colorHue,applyTheme,validLock,createLock,unlockKey,legacyKey};
 }
 patchToolsExport();
