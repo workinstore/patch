@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download — PatchHub</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar"><div class="wrap"><span class="brand"><b>▲</b> PATCH<span>HUB</span></span></div></header>
+  <main class="wrap">
+    <p id="status" class="status">Carregando...</p>
+    <section class="patch hidden" id="patch">
+      <div class="dvd"><img id="cover" alt=""></div>
+      <div class="info">
+        <p class="eyebrow">// download oficial</p>
+        <h1 id="title"></h1>
+        <div class="meta"><span class="code" id="code"></span><span class="size" id="size"></span></div>
+        <p class="desc" id="desc"></p>
+        <div class="downloads"><h2 id="dlTitle"></h2><div id="links"></div></div>
+      </div>
+    </section>
+  </main>
+  <footer class="footer"><div class="wrap">© <span id="year"></span> PatchHub</div></footer>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
