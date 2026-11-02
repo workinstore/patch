@@ -1,8 +1,10 @@
 /* ===== PROTEÇÃO BÁSICA (botão direito e atalhos) ===== */
+/* Liberada automaticamente quando o admin está logado (window.__ADMIN_UNLOCK) */
 (function () {
-  document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
-  document.addEventListener("dragstart", function (e) { if (e.target.tagName === "IMG") e.preventDefault(); });
+  document.addEventListener("contextmenu", function (e) { if (!window.__ADMIN_UNLOCK) e.preventDefault(); });
+  document.addEventListener("dragstart", function (e) { if (!window.__ADMIN_UNLOCK && e.target.tagName === "IMG") e.preventDefault(); });
   document.addEventListener("keydown", function (e) {
+    if (window.__ADMIN_UNLOCK) return;
     var k = (e.key || "").toLowerCase(), c = e.ctrlKey || e.metaKey;
     if (k === "f12" ||
         (c && e.shiftKey && ["i", "j", "c", "k"].indexOf(k) > -1) ||
@@ -24,7 +26,13 @@ const firebaseConfig = {
   messagingSenderId: "717458444908",
   appId: "1:717458444908:web:8b6d7ffb3831b6cb12be49"
 };
-const ADMIN_EMAIL = "admin@admin.com";
+/* O e-mail do admin NÃO fica no código: guardamos só o hash SHA-256 dele.
+   Para trocar: gere o SHA-256 do novo e-mail (minúsculo) e cole abaixo. */
+const ADMIN_EMAIL_HASH = "5edfa2692bdacc5e6ee805c626c50cb44cebb065f092d9a1067d89f74dacd326";
+async function sha256(t) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
@@ -40,8 +48,10 @@ const safeUrl = (u = "") => /^https?:\/\//i.test(u) ? esc(u) : "#";
 $("year").textContent = new Date().getFullYear();
 
 /* ===== AUTENTICAÇÃO ===== */
-auth.onAuthStateChanged(user => {
-  isAdmin = !!user && user.email === ADMIN_EMAIL;
+auth.onAuthStateChanged(async user => {
+  isAdmin = !!user && !!user.email && (await sha256(user.email.toLowerCase())) === ADMIN_EMAIL_HASH;
+  window.__ADMIN_UNLOCK = isAdmin;
+  document.body.classList.toggle("is-admin", isAdmin);
   if (user && !isAdmin) auth.signOut();
   $("adminPanel").classList.toggle("hidden", !isAdmin);
   $("btnAdmin").classList.toggle("hidden", isAdmin);
@@ -52,17 +62,26 @@ $("btnAdmin").onclick = () => $("loginModal").classList.remove("hidden");
 $("btnCloseLogin").onclick = () => $("loginModal").classList.add("hidden");
 $("btnLogout").onclick = () => auth.signOut();
 
+function setLoading(on) {
+  $("loginLoading").classList.toggle("hidden", !on);
+  $("btnLogin").disabled = on;
+  $("btnCloseLogin").disabled = on;
+}
+
 $("loginForm").onsubmit = async (e) => {
   e.preventDefault();
   $("loginError").textContent = "";
   const email = $("lEmail").value.trim().toLowerCase();
-  if (email !== ADMIN_EMAIL) { $("loginError").textContent = "Acesso restrito ao administrador."; return; }
+  setLoading(true);
   try {
+    if ((await sha256(email)) !== ADMIN_EMAIL_HASH) throw new Error("x");
     await auth.signInWithEmailAndPassword(email, $("lPass").value);
     $("loginModal").classList.add("hidden");
-    $("lPass").value = "";
+    $("loginForm").reset();
   } catch {
     $("loginError").textContent = "E-mail ou senha inválidos.";
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -75,6 +94,7 @@ db.on("value", snap => {
 function render() {
   const q = $("search").value.trim().toLowerCase();
   const list = Object.entries(patches)
+    .filter(([, p]) => isAdmin || p.visible !== false)
     .filter(([, p]) => !q || p.title?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q))
     .sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
 
@@ -84,6 +104,7 @@ function render() {
   $("grid").innerHTML = list.map(([id, p]) => `
     <article class="card" data-id="${id}">
       <div class="dvd"><img src="${safeUrl(p.cover)}" alt="${esc(p.title)}" loading="lazy"></div>
+      ${isAdmin ? `<span class="badge ${p.visible === false ? "badge-off" : ""}">${p.visible === false ? "Oculto · só ZIP" : "Visível"}</span>` : ""}
       <h3>${esc(p.title)}</h3>
       <div class="meta"><span class="code">${esc(p.code)}</span><span class="size">${esc(p.size)} ${esc(p.unit)}</span></div>
       ${isAdmin ? `<div class="admin-actions">
@@ -148,6 +169,7 @@ function resetForm() {
   $("patchId").value = "";
   $("linksList").innerHTML = "";
   addLinkRow();
+  $("fVisible").checked = true;
   $("formTitle").textContent = "Novo Patch";
 }
 $("btnCancel").onclick = resetForm;
@@ -161,6 +183,7 @@ function startEdit(id) {
   $("fSize").value = p.size || "";
   $("fUnit").value = p.unit || "GB";
   $("fDesc").value = p.desc || "";
+  $("fVisible").checked = p.visible !== false;
   $("linksList").innerHTML = "";
   (p.links?.length ? p.links : [{}]).forEach(l => addLinkRow(l.label, l.url));
   $("formTitle").textContent = "Editando: " + p.title;
@@ -187,6 +210,7 @@ $("patchForm").onsubmit = async (e) => {
     unit: $("fUnit").value,
     desc: $("fDesc").value.trim(),
     links,
+    visible: $("fVisible").checked,
     updatedAt: Date.now()
   };
   try {

@@ -45,6 +45,7 @@
           <label>Unidade<select id="fUnit"><option>GB</option><option>MB</option></select></label>
         </div>
       </div>
+      <label class="check"><input type="checkbox" id="fVisible" checked> Exibir este Patch na tela principal <small>(desmarcado = fica salvo apenas para gerar ZIP)</small></label>
       <label>Descrição<textarea id="fDesc" rows="4" required></textarea></label>
       <div class="links-head">
         <h3>Links de download</h3>
@@ -71,13 +72,14 @@
   <!-- Modal login -->
   <div id="loginModal" class="modal hidden">
     <form id="loginForm" class="modal-box">
+      <div id="loginLoading" class="loading hidden"><div class="spinner"></div><p>Entrando...</p></div>
       <h2>Acesso Admin</h2>
-      <label>E-mail<input id="lEmail" type="email" value="admin@admin.com" required></label>
+      <label>E-mail<input id="lEmail" type="email" autocomplete="off" placeholder="seu e-mail" required></label>
       <label>Senha<input id="lPass" type="password" required></label>
       <p id="loginError" class="error"></p>
       <div class="form-actions">
         <button type="button" id="btnCloseLogin" class="btn btn-ghost">Fechar</button>
-        <button type="submit" class="btn btn-primary">Entrar</button>
+        <button type="submit" id="btnLogin" class="btn btn-primary">Entrar</button>
       </div>
     </form>
   </div>
