@@ -378,7 +378,7 @@ async function generatePage(id, fallback) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Download — PatchHub</title>
+  <title>Download — Workin' Downloads</title>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -405,7 +405,7 @@ async function generatePage(id, fallback) {
       </div>
     </section>
   </main>
-  <footer class="footer"><div class="wrap">© <span id="year"></span> PatchHub</div></footer>
+  <footer class="footer"><div class="wrap">© <span id="year"></span> Workin' Downloads</div></footer>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <script src="patch-tools.js"></script>
@@ -418,7 +418,7 @@ async function generatePage(id, fallback) {
   /* O script.js do ZIP leva SOMENTE as credenciais padrão da página principal
      e o ID do Patch. Senha (hash), cor e demais dados vêm do Realtime Database. */
   zip.file("script.js", GUARD_CODE + `
-/* Página gerada pelo PatchHub — senha, cor e dados vêm do Realtime Database */
+/* Página gerada pelo Workin' Downloads — senha, cor e dados vêm do Realtime Database */
 var firebaseConfig = ${JSON.stringify(firebaseConfig, null, 2)};
 var PATCH_ID = ${JSON.stringify(id)};
 firebase.initializeApp(firebaseConfig);
