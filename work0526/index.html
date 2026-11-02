@@ -10,7 +10,15 @@
 <body>
   <header class="topbar"><div class="wrap"><span class="brand"><b>▲</b> PATCH<span>HUB</span></span></div></header>
   <main class="wrap">
-    <p id="status" class="status">Carregando...</p>
+    <form id="accessForm" class="gate hidden">
+      <h1>Patch protegido</h1>
+      <label for="accessPassword">Senha de acesso</label>
+      <input id="accessPassword" type="password" autocomplete="current-password" required>
+      <button id="accessButton" type="submit">Acessar Patch</button>
+      <div id="verifyState" class="verify-state hidden" role="status"><span class="spinner" aria-hidden="true"></span>Verificando...</div>
+      <p id="accessError" class="error" role="alert"></p>
+    </form>
+    <p id="status" class="status" role="status">Carregando...</p>
     <section class="patch hidden" id="patch">
       <div class="dvd"><img id="cover" alt=""></div>
       <div class="info">
@@ -25,6 +33,7 @@
   <footer class="footer"><div class="wrap">© <span id="year"></span> PatchHub</div></footer>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="patch-tools.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
