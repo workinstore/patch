@@ -1,0 +1,92 @@
+:root{
+  --bg:#07090a; --surface:#0e1211; --surface-2:#141a18; --border:#1f2a26;
+  --text:#e6efe9; --muted:#8a9a92;
+  --green:#22e07a; --green-dim:#15a85a; --green-glow:rgba(34,224,122,.25);
+  --danger:#ff5468; --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:17px;line-height:1.5;min-height:100vh;display:flex;flex-direction:column}
+main{flex:1}
+a{color:inherit;text-decoration:none}
+.container{width:min(1200px,92%);margin:0 auto}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+
+.topbar{position:sticky;top:0;z-index:20;background:rgba(7,9,10,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+.topbar-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px}
+.brand{font-weight:700;font-size:1.4rem;letter-spacing:2px}
+.brand span{color:var(--green)}
+.brand-mark{color:var(--green);margin-right:4px}
+.top-actions{display:flex;gap:10px;flex:1;justify-content:flex-end}
+#search{max-width:320px;width:100%}
+
+input,select,textarea{width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font:inherit;font-size:15px;outline:none;transition:border-color .2s,box-shadow .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-glow)}
+label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted);font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px}
+
+.btn{border:1px solid transparent;border-radius:8px;padding:9px 18px;font:inherit;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;font-size:14px;transition:all .2s;white-space:nowrap}
+.btn-primary{background:var(--green);color:#03140a}
+.btn-primary:hover{background:#3cf08e;box-shadow:0 0 20px var(--green-glow)}
+.btn-ghost{background:transparent;border-color:var(--border);color:var(--text)}
+.btn-ghost:hover{border-color:var(--green);color:var(--green)}
+.btn-danger{background:transparent;border-color:var(--danger);color:var(--danger)}
+.btn-sm{padding:6px 12px;font-size:12px}
+
+.hero{padding:56px 0 32px;border-bottom:1px solid var(--border);background:radial-gradient(ellipse at top,rgba(34,224,122,.08),transparent 60%)}
+.eyebrow{font-family:'JetBrains Mono',monospace;color:var(--green);font-size:13px;margin-bottom:6px}
+.hero h1{font-size:clamp(2rem,5vw,3rem);line-height:1.1}
+
+.status{text-align:center;color:var(--muted);padding:40px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:24px;padding:32px 0 60px}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s;display:flex;flex-direction:column}
+.card:hover{transform:translateY(-4px);border-color:var(--green-dim);box-shadow:0 10px 30px -10px var(--green-glow)}
+/* Capa formato DVD (proporção 135x190mm) */
+.dvd{position:relative;aspect-ratio:135/190;border-radius:4px;overflow:hidden;background:#000;box-shadow:0 6px 18px rgba(0,0,0,.6)}
+.dvd::before{content:"";position:absolute;left:0;top:0;bottom:0;width:7%;background:linear-gradient(90deg,rgba(255,255,255,.15),rgba(0,0,0,.4));z-index:1}
+.dvd::after{content:"DVD";position:absolute;top:0;left:0;right:0;background:var(--green);color:#03140a;font-weight:700;font-size:11px;letter-spacing:3px;text-align:center;padding:2px 0;z-index:2}
+.dvd img{width:100%;height:100%;object-fit:cover;display:block}
+.card h3{font-size:1.15rem;margin-top:12px;line-height:1.2}
+.meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px}
+.code{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green);background:rgba(34,224,122,.08);border:1px solid rgba(34,224,122,.25);padding:2px 8px;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.size{font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap}
+.admin-actions{display:flex;gap:6px;margin-top:10px}
+
+.admin-panel{background:var(--surface);border:1px solid var(--green-dim);border-radius:var(--radius);padding:24px;margin-top:32px}
+.panel-head,.links-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.links-head{margin:8px 0 12px}
+.links-head h3{font-size:1.1rem;color:var(--green)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+.size-row{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+.link-row{display:grid;grid-template-columns:1fr 2fr auto;gap:10px;margin-bottom:10px}
+.form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal-box{background:var(--surface);border:1px solid var(--green-dim);border-radius:var(--radius);padding:28px;width:min(420px,100%);position:relative;max-height:92vh;overflow:auto}
+.modal-box h2{margin-bottom:18px}
+.error{color:var(--danger);font-size:14px;min-height:20px}
+.detail-box{width:min(860px,100%)}
+.close{position:absolute;top:10px;right:14px;background:none;border:none;color:var(--muted);font-size:28px;cursor:pointer}
+.close:hover{color:var(--green)}
+.detail{display:grid;grid-template-columns:240px 1fr;gap:28px}
+.detail h2{font-size:1.8rem;line-height:1.1;margin-bottom:10px}
+.detail .desc{color:var(--muted);white-space:pre-line;margin:16px 0 22px}
+.downloads h4{color:var(--green);letter-spacing:2px;text-transform:uppercase;font-size:14px;margin-bottom:10px}
+.dl{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--surface-2);transition:border-color .2s}
+.dl:hover{border-color:var(--green)}
+.dl span{font-weight:600}
+.dl b{color:var(--green);font-size:13px;letter-spacing:1px}
+
+.footer{border-top:1px solid var(--border);padding:20px 0;color:var(--muted);font-size:14px;text-align:center}
+
+@media(max-width:700px){
+  .grid-2,.detail{grid-template-columns:1fr}
+  .detail .dvd{max-width:200px;margin:0 auto}
+  .link-row{grid-template-columns:1fr}
+  .grid{grid-template-columns:repeat(2,1fr);gap:14px}
+  .hero{padding:36px 0 22px}
+}
+
+body{-webkit-user-select:none;user-select:none}
+input,textarea{-webkit-user-select:text;user-select:text}
+img{-webkit-user-drag:none}
