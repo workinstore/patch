@@ -18,13 +18,13 @@
 /* ===== CONFIGURAÇÃO DO FIREBASE =====
    Substitua pelos dados do seu projeto (Console Firebase > Configurações do projeto > Seus apps > Web) */
 const firebaseConfig = {
-  apiKey: "AIzaSyA41WO8_8fUBCLt2ZOUcFYAcihqyeG11wU",
-  authDomain: "patches-4096f.firebaseapp.com",
-  databaseURL: "https://patches-4096f-default-rtdb.firebaseio.com",
-  projectId: "patches-4096f",
-  storageBucket: "patches-4096f.firebasestorage.app",
-  messagingSenderId: "717458444908",
-  appId: "1:717458444908:web:8b6d7ffb3831b6cb12be49"
+  apiKey: "SUA_API_KEY",
+  authDomain: "SEU_PROJETO.firebaseapp.com",
+  databaseURL: "https://SEU_PROJETO-default-rtdb.firebaseio.com",
+  projectId: "SEU_PROJETO",
+  storageBucket: "SEU_PROJETO.appspot.com",
+  messagingSenderId: "000000000000",
+  appId: "1:000000000000:web:xxxxxxxxxxxx"
 };
 /* O e-mail do admin NÃO fica no código: guardamos só o hash SHA-256 dele.
    Para trocar: gere o SHA-256 do novo e-mail (minúsculo) e cole abaixo. */
@@ -164,12 +164,43 @@ function addLinkRow(label = "", url = "") {
 }
 $("btnAddLink").onclick = () => addLinkRow();
 
+let editingProtection = null;
+function setZipColor(color) {
+  color = PatchTools.normalizeColor(color);
+  const channels = PatchTools.rgb(color);
+  $("fColor").value = color;
+  ["fRed", "fGreen", "fBlue"].forEach((id,i) => $(id).value = channels[i]);
+  $("fHue").value = PatchTools.colorHue(color);
+  $("colorValue").textContent = "RGB(" + channels.join(", ") + ") · " + color;
+  $("colorGreen").setAttribute("aria-pressed", String(color === PatchTools.GREEN));
+  $("colorCyan").setAttribute("aria-pressed", String(color === PatchTools.CYAN));
+}
+$("colorGreen").onclick = () => setZipColor(PatchTools.GREEN);
+$("colorCyan").onclick = () => setZipColor(PatchTools.CYAN);
+$("fColor").oninput = () => setZipColor($("fColor").value);
+$("fHue").oninput = () => { const hue = $("fHue").value; setZipColor(PatchTools.hueColor(hue)); $("fHue").value = hue; };
+["fRed","fGreen","fBlue"].forEach(id => $(id).oninput = () => {
+  const channels = ["fRed","fGreen","fBlue"].map(key => $(key).value);
+  if (channels.every(n => n !== "" && Number(n) >= 0 && Number(n) <= 255)) setZipColor(PatchTools.fromRgb(channels));
+});
+function syncPasswordFields() {
+  const enabled = $("fProtected").checked;
+  $("passwordFields").classList.toggle("hidden", !enabled);
+  $("fPatchPassword").disabled = !enabled;
+  $("fPatchPassword").required = enabled && !editingProtection;
+  $("passwordHint").textContent = editingProtection ? "Deixe em branco para manter a senha atual; preencha para trocar." : "Informe a senha que será exigida para abrir o Patch.";
+  if (!enabled) $("fPatchPassword").value = "";
+}
+$("fProtected").onchange = syncPasswordFields;
 function resetForm() {
   $("patchForm").reset();
   $("patchId").value = "";
   $("linksList").innerHTML = "";
   addLinkRow();
   $("fVisible").checked = true;
+  editingProtection = null;
+  setZipColor(PatchTools.GREEN);
+  syncPasswordFields();
   $("formTitle").textContent = "Novo Patch";
 }
 $("btnCancel").onclick = resetForm;
@@ -184,6 +215,11 @@ function startEdit(id) {
   $("fUnit").value = p.unit || "GB";
   $("fDesc").value = p.desc || "";
   $("fVisible").checked = p.visible !== false;
+  setZipColor(p.zipColor);
+  editingProtection = p.zipProtection || null;
+  $("fProtected").checked = !!editingProtection;
+  $("fPatchPassword").value = "";
+  syncPasswordFields();
   $("linksList").innerHTML = "";
   (p.links?.length ? p.links : [{}]).forEach(l => addLinkRow(l.label, l.url));
   $("formTitle").textContent = "Editando: " + p.title;
@@ -202,6 +238,15 @@ $("patchForm").onsubmit = async (e) => {
     .map(r => ({ label: r.querySelector(".l-label").value.trim(), url: r.querySelector(".l-url").value.trim() }))
     .filter(l => l.url);
 
+  const saveButtons = [...$("patchForm").querySelectorAll('button[type="submit"]')];
+  saveButtons.forEach(button => button.disabled = true);
+  $("patchForm").setAttribute("aria-busy", "true");
+  try {
+  let protection = null;
+  if ($("fProtected").checked) {
+    protection = $("fPatchPassword").value ? await PatchTools.createProtection($("fPatchPassword").value) : editingProtection;
+    if (!PatchTools.validProtection(protection)) throw new Error("Informe uma nova senha para o Patch.");
+  }
   const data = {
     title: $("fTitle").value.trim(),
     code,
@@ -211,9 +256,10 @@ $("patchForm").onsubmit = async (e) => {
     desc: $("fDesc").value.trim(),
     links,
     visible: $("fVisible").checked,
+    zipColor: PatchTools.normalizeColor($("fColor").value),
+    zipProtection: protection,
     updatedAt: Date.now()
   };
-  try {
     let savedId = id;
     if (id) await db.child(id).update(data);
     else savedId = (await db.push({ ...data, createdAt: Date.now() })).key;
@@ -221,18 +267,39 @@ $("patchForm").onsubmit = async (e) => {
     resetForm();
     if (gen) await generatePage(savedId, data); else alert("Patch salvo com sucesso!");
   } catch (err) { alert("Erro ao salvar: " + err.message); }
+  finally { saveButtons.forEach(button => button.disabled = false); $("patchForm").removeAttribute("aria-busy"); }
 };
 
 resetForm();
 
-const PAGE_CSS = ":root{--bg:#07090a;--surface:#0e1211;--surface-2:#141a18;--border:#1f2a26;--text:#e6efe9;--muted:#8a9a92;--green:#22e07a;--green-dim:#15a85a;--glow:rgba(34,224,122,.25)}\n*{box-sizing:border-box;margin:0;padding:0}\nbody{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:17px;line-height:1.5;min-height:100vh;display:flex;flex-direction:column;background-image:radial-gradient(ellipse at top,rgba(34,224,122,.08),transparent 55%)}\nmain{flex:1}\na{color:inherit;text-decoration:none}\n.wrap{width:min(1000px,92%);margin:0 auto}\n.topbar{border-bottom:1px solid var(--border);height:64px;display:flex;align-items:center}\n.brand{font-weight:700;font-size:1.4rem;letter-spacing:2px}\n.brand b,.brand span{color:var(--green)}\n.patch{display:grid;grid-template-columns:300px 1fr;gap:40px;padding:48px 0 60px}\n.dvd{position:relative;aspect-ratio:135/190;border-radius:4px;overflow:hidden;background:#000;box-shadow:0 20px 40px -10px var(--glow),0 6px 18px rgba(0,0,0,.6);border:1px solid var(--border)}\n.dvd::before{content:\"\";position:absolute;left:0;top:0;bottom:0;width:7%;background:linear-gradient(90deg,rgba(255,255,255,.15),rgba(0,0,0,.4));z-index:1}\n.dvd::after{content:\"DVD\";position:absolute;top:0;left:0;right:0;background:var(--green);color:#03140a;font-weight:700;font-size:12px;letter-spacing:4px;text-align:center;padding:3px 0;z-index:2}\n.dvd img{width:100%;height:100%;object-fit:cover;display:block}\n.eyebrow{font-family:'JetBrains Mono',monospace;color:var(--green);font-size:13px;margin-bottom:6px}\nh1{font-size:clamp(2rem,5vw,2.8rem);line-height:1.1}\n.meta{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:14px}\n.code{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--green);background:rgba(34,224,122,.08);border:1px solid rgba(34,224,122,.25);padding:3px 10px;border-radius:4px}\n.size{color:var(--muted);font-weight:600}\n.desc{color:var(--muted);white-space:pre-line;margin:20px 0 28px}\n.downloads h2{color:var(--green);letter-spacing:2px;text-transform:uppercase;font-size:15px;margin-bottom:12px}\n.dl{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--surface-2);transition:all .2s}\n.dl:hover{border-color:var(--green);box-shadow:0 0 20px var(--glow);transform:translateX(4px)}\n.dl span{font-weight:600}\n.dl b{background:var(--green);color:#03140a;padding:5px 12px;border-radius:6px;font-size:13px;letter-spacing:1px;white-space:nowrap}\n.muted{color:var(--muted)}\n.footer{border-top:1px solid var(--border);padding:20px 0;color:var(--muted);font-size:14px;text-align:center}\n@media(max-width:700px){.patch{grid-template-columns:1fr;gap:24px;padding:28px 0 40px}.dvd{max-width:220px;margin:0 auto;width:100%}}\n.hidden{display:none!important}\n.status{text-align:center;color:var(--muted);padding:80px 0}\nbody{-webkit-user-select:none;user-select:none}\n";
+const BASE_PAGE_CSS = ":root{--bg:#07090a;--surface:#0e1211;--surface-2:#141a18;--border:#1f2a26;--text:#e6efe9;--muted:#8a9a92;--green:#22e07a;--green-dim:#15a85a;--glow:rgba(34,224,122,.25)}\n*{box-sizing:border-box;margin:0;padding:0}\nbody{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:17px;line-height:1.5;min-height:100vh;display:flex;flex-direction:column;background-image:radial-gradient(ellipse at top,rgba(34,224,122,.08),transparent 55%)}\nmain{flex:1}\na{color:inherit;text-decoration:none}\n.wrap{width:min(1000px,92%);margin:0 auto}\n.topbar{border-bottom:1px solid var(--border);height:64px;display:flex;align-items:center}\n.brand{font-weight:700;font-size:1.4rem;letter-spacing:2px}\n.brand b,.brand span{color:var(--green)}\n.patch{display:grid;grid-template-columns:300px 1fr;gap:40px;padding:48px 0 60px}\n.dvd{position:relative;aspect-ratio:135/190;border-radius:4px;overflow:hidden;background:#000;box-shadow:0 20px 40px -10px var(--glow),0 6px 18px rgba(0,0,0,.6);border:1px solid var(--border)}\n.dvd::before{content:\"\";position:absolute;left:0;top:0;bottom:0;width:7%;background:linear-gradient(90deg,rgba(255,255,255,.15),rgba(0,0,0,.4));z-index:1}\n.dvd::after{content:\"DVD\";position:absolute;top:0;left:0;right:0;background:var(--green);color:#03140a;font-weight:700;font-size:12px;letter-spacing:4px;text-align:center;padding:3px 0;z-index:2}\n.dvd img{width:100%;height:100%;object-fit:cover;display:block}\n.eyebrow{font-family:'JetBrains Mono',monospace;color:var(--green);font-size:13px;margin-bottom:6px}\nh1{font-size:clamp(2rem,5vw,2.8rem);line-height:1.1}\n.meta{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:14px}\n.code{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--green);background:rgba(34,224,122,.08);border:1px solid rgba(34,224,122,.25);padding:3px 10px;border-radius:4px}\n.size{color:var(--muted);font-weight:600}\n.desc{color:var(--muted);white-space:pre-line;margin:20px 0 28px}\n.downloads h2{color:var(--green);letter-spacing:2px;text-transform:uppercase;font-size:15px;margin-bottom:12px}\n.dl{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--surface-2);transition:all .2s}\n.dl:hover{border-color:var(--green);box-shadow:0 0 20px var(--glow);transform:translateX(4px)}\n.dl span{font-weight:600}\n.dl b{background:var(--green);color:#03140a;padding:5px 12px;border-radius:6px;font-size:13px;letter-spacing:1px;white-space:nowrap}\n.muted{color:var(--muted)}\n.footer{border-top:1px solid var(--border);padding:20px 0;color:var(--muted);font-size:14px;text-align:center}\n@media(max-width:700px){.patch{grid-template-columns:1fr;gap:24px;padding:28px 0 40px}.dvd{max-width:220px;margin:0 auto;width:100%}}\n.hidden{display:none!important}\n.status{text-align:center;color:var(--muted);padding:80px 0}\nbody{-webkit-user-select:none;user-select:none}\n";
+
+const PAGE_CSS = BASE_PAGE_CSS
+  .replaceAll("rgba(34,224,122,.08)", "var(--accent-soft)")
+  .replaceAll("rgba(34,224,122,.25)", "var(--accent-border)")
+  .replaceAll("#03140a", "var(--accent-ink)") + `
+:root{--accent-soft:rgba(34,224,122,.08);--accent-border:rgba(34,224,122,.25);--accent-ink:#07090a;--error:#ff5468}
+body{background-image:none}h1{font-size:2.8rem;overflow-wrap:anywhere;letter-spacing:0}
+.info,.patch>div,.dl span{min-width:0;overflow-wrap:anywhere}.desc,.code{overflow-wrap:anywhere}.dl b{flex:none}.dl:hover{transform:none}
+.gate{width:min(420px,100%);margin:60px auto;padding:24px;border:1px solid var(--border);background:var(--surface);border-radius:8px}
+.gate h1{font-size:1.8rem;margin-bottom:18px}.gate label{display:block;color:var(--muted);margin-bottom:8px}
+.gate input{width:100%;font:inherit;padding:12px;background:var(--surface-2);color:var(--text);border:1px solid var(--border);border-radius:6px;user-select:text}
+.gate input:focus-visible,.gate button:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+.gate button{width:100%;margin-top:16px;padding:12px;border:0;border-radius:6px;background:var(--green);color:var(--accent-ink);font:inherit;font-weight:700;cursor:pointer}
+.gate button:disabled{opacity:.6;cursor:wait}.error{color:var(--error);min-height:24px;margin-top:10px;overflow-wrap:anywhere}
+.verify-state{display:flex;align-items:center;justify-content:center;gap:10px;color:var(--green);margin-top:12px}
+.spinner{display:inline-block;width:22px;height:22px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:700px){h1{font-size:2rem}.patch{gap:24px}.dl{flex-wrap:wrap}.gate{margin:28px auto;padding:20px}}
+@media(prefers-reduced-motion:reduce){.spinner{animation-duration:2s}.dl{transition:none}}
+`;
 
 /* ===== GERADOR DE PÁGINA INDIVIDUAL (ZIP com HTML, CSS e JS) =====
-   A página gerada NÃO contém dados do Patch: guarda apenas o ID e busca
-   tudo (título, capa, links...) no Realtime Database ao abrir. */
+   A página gerada NÃO contém senha, hash nem dados do Patch: guarda apenas as
+   credenciais padrão do Firebase e o ID, e busca tudo no Realtime Database ao abrir. */
 const GUARD_CODE = "/* ===== PROTE\u00c7\u00c3O B\u00c1SICA (bot\u00e3o direito e atalhos) ===== */\n(function () {\n  document.addEventListener(\"contextmenu\", function (e) { e.preventDefault(); });\n  document.addEventListener(\"dragstart\", function (e) { if (e.target.tagName === \"IMG\") e.preventDefault(); });\n  document.addEventListener(\"keydown\", function (e) {\n    var k = (e.key || \"\").toLowerCase(), c = e.ctrlKey || e.metaKey;\n    if (k === \"f12\" ||\n        (c && e.shiftKey && [\"i\", \"j\", \"c\", \"k\"].indexOf(k) > -1) ||\n        (c && [\"u\", \"s\", \"p\"].indexOf(k) > -1) ||\n        (e.metaKey && e.altKey && [\"i\", \"j\", \"c\", \"u\"].indexOf(k) > -1)) {\n      e.preventDefault(); e.stopPropagation(); return false;\n    }\n  }, true);\n})();\n";
 async function generatePage(id, fallback) {
-  const p = patches[id] || fallback;
+  const p = fallback || patches[id];
   if (!id || !p) return;
   const zip = new JSZip();
   zip.file("index.html", `<!DOCTYPE html>
@@ -247,7 +314,15 @@ async function generatePage(id, fallback) {
 <body>
   <header class="topbar"><div class="wrap"><span class="brand"><b>▲</b> PATCH<span>HUB</span></span></div></header>
   <main class="wrap">
-    <p id="status" class="status">Carregando...</p>
+    <form id="accessForm" class="gate hidden">
+      <h1>Patch protegido</h1>
+      <label for="accessPassword">Senha de acesso</label>
+      <input id="accessPassword" type="password" autocomplete="current-password" required>
+      <button id="accessButton" type="submit">Acessar Patch</button>
+      <div id="verifyState" class="verify-state hidden" role="status"><span class="spinner" aria-hidden="true"></span>Verificando...</div>
+      <p id="accessError" class="error" role="alert"></p>
+    </form>
+    <p id="status" class="status" role="status">Carregando...</p>
     <section class="patch hidden" id="patch">
       <div class="dvd"><img id="cover" alt=""></div>
       <div class="info">
@@ -262,24 +337,36 @@ async function generatePage(id, fallback) {
   <footer class="footer"><div class="wrap">© <span id="year"></span> PatchHub</div></footer>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="patch-tools.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
 `);
   zip.file("style.css", PAGE_CSS);
-  const cfg = { apiKey: firebaseConfig.apiKey, authDomain: firebaseConfig.authDomain, databaseURL: firebaseConfig.databaseURL, projectId: firebaseConfig.projectId, appId: firebaseConfig.appId };
+  zip.file("patch-tools.js", "(" + patchToolsExport.toString() + ")();");
+  /* O script.js do ZIP leva SOMENTE as credenciais padrão da página principal
+     e o ID do Patch. Senha (hash), cor e demais dados vêm do Realtime Database. */
   zip.file("script.js", GUARD_CODE + `
-/* Página gerada pelo PatchHub — os dados vêm do Realtime Database */
+/* Página gerada pelo PatchHub — senha, cor e dados vêm do Realtime Database */
+var firebaseConfig = ${JSON.stringify(firebaseConfig, null, 2)};
 var PATCH_ID = ${JSON.stringify(id)};
-firebase.initializeApp(${JSON.stringify(cfg, null, 2)});
+firebase.initializeApp(firebaseConfig);
 
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var safe = function (u) { return /^https?:\\/\\//i.test(u || "") ? u : "#"; };
   $("year").textContent = new Date().getFullYear();
-  firebase.database().ref("patches/" + PATCH_ID).on("value", function (snap) {
-    var p = snap.val();
-    if (!p) { $("status").textContent = "Patch não encontrado ou removido."; $("status").classList.remove("hidden"); $("patch").classList.add("hidden"); return; }
+  PatchTools.applyTheme(PatchTools.GREEN);
+
+  var current = null, unlocked = false;
+
+  function showStatus(text) {
+    $("status").textContent = text;
+    $("status").classList.remove("hidden");
+    $("patch").classList.add("hidden");
+  }
+
+  function render(p) {
     var links = p.links || [];
     document.title = p.title + " — Download";
     $("title").textContent = p.title;
@@ -298,8 +385,48 @@ firebase.initializeApp(${JSON.stringify(cfg, null, 2)});
       var b = document.createElement("b"); b.textContent = "BAIXAR ↓";
       a.appendChild(s); a.appendChild(b); box.appendChild(a);
     });
-    $("status").classList.add("hidden"); $("patch").classList.remove("hidden");
-  }, function () { $("status").textContent = "Erro ao carregar o Patch."; });
+    $("accessForm").classList.add("hidden");
+    $("status").classList.add("hidden");
+    $("patch").classList.remove("hidden");
+  }
+
+  function update() {
+    var p = current;
+    if (!p) { $("accessForm").classList.add("hidden"); showStatus("Patch não encontrado ou removido."); return; }
+    PatchTools.applyTheme(p.zipColor);
+    if (p.zipProtection && !unlocked) {
+      $("status").classList.add("hidden");
+      $("patch").classList.add("hidden");
+      $("accessForm").classList.remove("hidden");
+      return;
+    }
+    render(p);
+  }
+
+  firebase.database().ref("patches/" + PATCH_ID).on("value", function (snap) {
+    current = snap.val();
+    update();
+  }, function () { $("accessForm").classList.add("hidden"); showStatus("Erro ao carregar o Patch."); });
+
+  $("accessForm").onsubmit = async function (event) {
+    event.preventDefault();
+    if ($("accessButton").disabled || !current) return;
+    $("accessError").textContent = "";
+    $("accessButton").disabled = true;
+    $("accessPassword").disabled = true;
+    $("verifyState").classList.remove("hidden");
+    $("accessForm").setAttribute("aria-busy", "true");
+    try {
+      if (!current.zipProtection || await PatchTools.verifyPassword($("accessPassword").value, current.zipProtection)) {
+        $("accessPassword").value = ""; unlocked = true; update();
+      } else { $("accessError").textContent = "Senha incorreta. Tente novamente."; $("accessPassword").value = ""; }
+    } catch (error) { $("accessError").textContent = error.message; }
+    finally {
+      $("accessButton").disabled = false; $("accessPassword").disabled = false;
+      $("verifyState").classList.add("hidden"); $("accessForm").removeAttribute("aria-busy");
+      if (!unlocked) $("accessPassword").focus();
+    }
+  };
 })();
 `);
   const blob = await zip.generateAsync({ type: "blob" });

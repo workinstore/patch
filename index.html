@@ -47,6 +47,27 @@
       </div>
       <label class="check"><input type="checkbox" id="fVisible" checked> Exibir este Patch na tela principal <small>(desmarcado = fica salvo apenas para gerar ZIP)</small></label>
       <label>Descrição<textarea id="fDesc" rows="4" required></textarea></label>
+      <fieldset class="zip-options">
+        <legend>Página ZIP</legend>
+        <div class="color-presets" role="group" aria-label="Cor da página ZIP">
+          <button type="button" id="colorGreen" class="btn btn-ghost" aria-pressed="true"><span class="swatch swatch-green"></span>Verde padrão</button>
+          <button type="button" id="colorCyan" class="btn btn-ghost" aria-pressed="false"><span class="swatch swatch-cyan"></span>Ciano</button>
+        </div>
+        <label>Espectro de cores<input id="fHue" type="range" min="0" max="360" value="148" class="hue-slider"></label>
+        <div class="color-custom">
+          <label>Cor RGB<input id="fColor" type="color" value="#22e07a"></label>
+          <label>R<input id="fRed" type="number" min="0" max="255" value="34" required></label>
+          <label>G<input id="fGreen" type="number" min="0" max="255" value="224" required></label>
+          <label>B<input id="fBlue" type="number" min="0" max="255" value="122" required></label>
+        </div>
+        <output id="colorValue" class="color-value">RGB(34, 224, 122) · #22e07a</output>
+        <label class="check"><input id="fProtected" type="checkbox">Exigir senha na página ZIP</label>
+        <div id="passwordFields" class="hidden">
+          <label>Senha do Patch<input id="fPatchPassword" type="password" autocomplete="new-password" disabled></label>
+          <p id="passwordHint" class="muted"></p>
+          <p class="muted security-note">Proteção básica no navegador; não impede acesso técnico aos arquivos ou ao banco público. Use uma senha exclusiva.</p>
+        </div>
+      </fieldset>
       <div class="links-head">
         <h3>Links de download</h3>
         <button type="button" id="btnAddLink" class="btn btn-ghost">+ Adicionar link</button>
@@ -96,6 +117,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="patch-tools.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
