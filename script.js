@@ -18,14 +18,15 @@
 /* ===== CONFIGURAÇÃO DO FIREBASE =====
    Substitua pelos dados do seu projeto (Console Firebase > Configurações do projeto > Seus apps > Web) */
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_PROJETO.firebaseapp.com",
-  databaseURL: "https://SEU_PROJETO-default-rtdb.firebaseio.com",
-  projectId: "SEU_PROJETO",
-  storageBucket: "SEU_PROJETO.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:xxxxxxxxxxxx"
+  apiKey: "AIzaSyA41WO8_8fUBCLt2ZOUcFYAcihqyeG11wU",
+  authDomain: "patches-4096f.firebaseapp.com",
+  databaseURL: "https://patches-4096f-default-rtdb.firebaseio.com",
+  projectId: "patches-4096f",
+  storageBucket: "patches-4096f.firebasestorage.app",
+  messagingSenderId: "717458444908",
+  appId: "1:717458444908:web:8b6d7ffb3831b6cb12be49"
 };
+
 /* O e-mail do admin NÃO fica no código: guardamos só o hash SHA-256 dele.
    Para trocar: gere o SHA-256 do novo e-mail (minúsculo) e cole abaixo. */
 const ADMIN_EMAIL_HASH = "5edfa2692bdacc5e6ee805c626c50cb44cebb065f092d9a1067d89f74dacd326";
