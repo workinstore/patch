@@ -13,7 +13,7 @@
   }, true);
 })();
 
-/* Página gerada pelo PatchHub — senha, cor e dados vêm do Realtime Database */
+/* Página gerada pelo Workin' Downloads — senha, cor e dados vêm do Realtime Database */
 var firebaseConfig = {
   "apiKey": "AIzaSyA41WO8_8fUBCLt2ZOUcFYAcihqyeG11wU",
   "authDomain": "patches-4096f.firebaseapp.com",
