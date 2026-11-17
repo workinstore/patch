@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Workin' Downloads — Downloads Oficiais</title>
   <meta name="description" content="Central de downloads de Patches: capas, descrições, códigos e links para todas as versões.">
+  <meta property="og:title" content="Workin' Downloads — Downloads Oficiais">
+  <meta property="og:description" content="Encontre patches por título ou código e ordene por nome, tamanho ou data de postagem.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" type="image/x-icon" href="fav.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -15,8 +19,18 @@
     <div class="container topbar-inner">
       <a href="#" class="brand"><span class="brand-mark">▲</span> Workin'<span>Downloads</span></a>
       <div class="top-actions">
-        <input id="search" type="search" placeholder="Buscar por título ou código...">
-        <button id="btnAdmin" class="btn btn-ghost">Admin</button>
+        <input id="search" type="search" placeholder="Buscar por título ou código..." aria-label="Buscar por título ou código">
+        <label class="sort-control" for="sortOrder">
+          <span>Ordenar por</span>
+          <select id="sortOrder">
+            <option value="title-asc" selected>Nome: A → Z</option>
+            <option value="title-desc">Nome: Z → A</option>
+            <option value="size-desc">Maior jogo primeiro</option>
+            <option value="size-asc">Menor jogo primeiro</option>
+            <option value="date-desc">Último postado primeiro</option>
+            <option value="date-asc">Primeiro postado primeiro</option>
+          </select>
+        </label>
       </div>
     </div>
   </header>
@@ -91,11 +105,13 @@
     <div class="container">© <span id="year"></span> Workin' Downloads — Todos os direitos reservados.</div>
   </footer>
 
+  <button id="btnAdmin" class="admin-dot" type="button" aria-label="Acesso administrativo"></button>
+
   <!-- Modal login -->
-  <div id="loginModal" class="modal hidden">
+  <div id="loginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
     <form id="loginForm" class="modal-box">
       <div id="loginLoading" class="loading hidden"><div class="spinner"></div><p>Entrando...</p></div>
-      <h2>Acesso Admin</h2>
+      <h2 id="loginTitle">Acesso Admin</h2>
       <label>E-mail<input id="lEmail" type="email" autocomplete="off" placeholder="seu e-mail" required></label>
       <label>Senha<input id="lPass" type="password" placeholder="sua senha" required></label>
       <p id="loginError" class="error"></p>

@@ -56,6 +56,32 @@ function patchToolsExport() {
     const ok = p && p.version === 1 && p.iterations === 210000 && /^[a-f0-9]{32}$/.test(p.salt) && Array.isArray(p.hashParts) && p.hashParts.length === 8 && p.hashParts.every(v => /^[a-f0-9]{8}$/.test(v));
     return ok ? {lock:{version:1, salt:p.salt, iterations:210000}, key:p.hashParts.slice().reverse().join('')} : null;
   }
-  root.PatchTools = {GREEN,CYAN,normalizeColor,rgb,fromRgb,hueColor,colorHue,applyTheme,validLock,createLock,unlockKey,legacyKey};
+  /* Ordenação em português, sem alterar a lista nem a data original da postagem. */
+  const titleOrder = new Intl.Collator('pt-BR', {sensitivity:'base', numeric:true});
+  function sizeInMB(patch) {
+    const size = Number(String(patch.size ?? '').replace(',', '.'));
+    if (!Number.isFinite(size) || size < 0) return 0;
+    return size * (String(patch.unit || '').trim().toUpperCase() === 'GB' ? 1024 : 1);
+  }
+  function postedAt(patch) {
+    const timestamp = Number(patch.createdAt);
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  }
+  function sortPatches(entries, order = 'title-asc') {
+    const byTitle = (a, b) => titleOrder.compare(String(a[1].title || '').trim(), String(b[1].title || '').trim());
+    return entries.slice().sort((a, b) => {
+      let result;
+      switch (order) {
+        case 'title-desc': result = byTitle(b, a); break;
+        case 'size-desc': result = sizeInMB(b[1]) - sizeInMB(a[1]); break;
+        case 'size-asc': result = sizeInMB(a[1]) - sizeInMB(b[1]); break;
+        case 'date-desc': result = postedAt(b[1]) - postedAt(a[1]); break;
+        case 'date-asc': result = postedAt(a[1]) - postedAt(b[1]); break;
+        default: result = byTitle(a, b);
+      }
+      return result || byTitle(a, b) || titleOrder.compare(a[0], b[0]);
+    });
+  }
+  root.PatchTools = {GREEN,CYAN,normalizeColor,rgb,fromRgb,hueColor,colorHue,applyTheme,validLock,createLock,unlockKey,legacyKey,sizeInMB,sortPatches};
 }
 patchToolsExport();

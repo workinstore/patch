@@ -127,10 +127,10 @@ async function readVault(id) {
 
 function render() {
   const q = $("search").value.trim().toLowerCase();
-  const list = Object.entries(patches)
+  const matches = Object.entries(patches)
     .filter(([, p]) => isAdmin || p.visible !== false)
-    .filter(([, p]) => !q || p.title?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q))
-    .sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+    .filter(([, p]) => !q || p.title?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q));
+  const list = PatchTools.sortPatches(matches, $("sortOrder").value);
 
   $("status").textContent = list.length ? "" : (q ? "Nenhum resultado encontrado." : "Nenhum Patch publicado ainda.");
   $("status").classList.toggle("hidden", !!list.length);
@@ -148,6 +148,7 @@ function render() {
     </article>`).join("");
 }
 $("search").oninput = render;
+$("sortOrder").onchange = render;
 
 $("grid").onclick = (e) => {
   const edit = e.target.dataset.edit, del = e.target.dataset.del;
