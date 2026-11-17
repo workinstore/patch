@@ -139,7 +139,7 @@ function render() {
     <article class="card" data-id="${id}">
       <div class="dvd"><img src="${safeUrl(p.cover)}" alt="${esc(p.title)}" loading="lazy"></div>
       ${isAdmin ? `<span class="badge ${p.visible === false ? "badge-off" : ""}">${p.visible === false ? "Oculto · só ZIP" : "Visível"}</span>` : ""}
-      <h3>${esc(p.title)}</h3>
+      <h3 title="${esc(p.title)}">${esc(p.title)}</h3>
       <div class="meta"><span class="code">${esc(p.code)}</span><span class="size">${esc(p.size)} ${esc(p.unit)}</span></div>
       ${isAdmin ? `<div class="admin-actions">
         <button class="btn btn-ghost btn-sm" data-edit="${id}">Editar</button>
