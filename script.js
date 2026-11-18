@@ -55,12 +55,12 @@ auth.onAuthStateChanged(async user => {
   window.__ADMIN_UNLOCK = isAdmin;
   document.body.classList.toggle("is-admin", isAdmin);
   if (user && !isAdmin) auth.signOut();
-  $("adminPanel").classList.toggle("hidden", !isAdmin);
-  $("btnAdmin").classList.toggle("hidden", isAdmin);
+  if (!isAdmin) $("adminModal").classList.add("hidden");
   subscribe();
 });
 
-$("btnAdmin").onclick = () => $("loginModal").classList.remove("hidden");
+$("btnAdmin").onclick = () => $(isAdmin ? "adminModal" : "loginModal").classList.remove("hidden");
+$("btnCloseAdmin").onclick = () => $("adminModal").classList.add("hidden");
 $("btnCloseLogin").onclick = () => $("loginModal").classList.add("hidden");
 $("btnLogout").onclick = () => auth.signOut();
 
@@ -80,6 +80,7 @@ $("loginForm").onsubmit = async (e) => {
     await auth.signInWithEmailAndPassword(email, $("lPass").value);
     $("loginModal").classList.add("hidden");
     $("loginForm").reset();
+    $("adminModal").classList.remove("hidden");
   } catch {
     $("loginError").textContent = "E-mail ou senha inválidos.";
   } finally {
@@ -299,7 +300,8 @@ async function startEdit(id) {
   $("linksList").innerHTML = "";
   (links.length ? links : [{}]).forEach(l => addLinkRow(l.label, l.url));
   $("formTitle").textContent = "Editando: " + p.title;
-  $("adminPanel").scrollIntoView({ behavior: "smooth" });
+  $("adminModal").classList.remove("hidden");
+  $("adminPanel").scrollTop = 0;
 }
 
 $("patchForm").onsubmit = async (e) => {

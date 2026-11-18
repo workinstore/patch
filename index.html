@@ -44,10 +44,14 @@
   </section>
 
   <!-- Painel admin -->
-  <section id="adminPanel" class="container admin-panel hidden">
+  <div id="adminModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+  <section id="adminPanel" class="modal-box admin-panel">
     <div class="panel-head">
       <h2 id="formTitle">Novo jogo</h2>
-      <button id="btnLogout" class="btn btn-ghost">Sair</button>
+      <div class="panel-actions">
+        <button type="button" id="btnLogout" class="btn btn-ghost">Sair</button>
+        <button type="button" id="btnCloseAdmin" class="btn btn-ghost" aria-label="Fechar painel">Fechar</button>
+      </div>
     </div>
     <form id="patchForm">
       <input type="hidden" id="patchId">
@@ -95,6 +99,7 @@
       </div>
     </form>
   </section>
+  </div>
 
   <main class="container">
     <div id="status" class="status">Carregando jogos...</div>
