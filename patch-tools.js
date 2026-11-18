@@ -42,7 +42,7 @@ function patchToolsExport() {
   }
   async function createLock(password) {
     requireCrypto();
-    if (!password) throw new Error('Informe a senha do Patch.');
+    if (!password) throw new Error('Informe a senha do jogo.');
     const lock = {version:1, salt:hex(root.crypto.getRandomValues(new Uint8Array(16))), iterations:210000};
     return {lock, key: await derive(password, lock.salt, lock.iterations)};
   }

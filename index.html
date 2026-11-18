@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Workin' Downloads — Downloads Oficiais</title>
-  <meta name="description" content="Central de downloads de Patches: capas, descrições, códigos e links para todas as versões.">
+  <meta name="description" content="Central de downloads de jogos: capas, descrições, códigos e links para todas as versões.">
   <meta property="og:title" content="Workin' Downloads — Downloads Oficiais">
-  <meta property="og:description" content="Encontre patches por título ou código e ordene por nome, tamanho ou data de postagem.">
+  <meta property="og:description" content="Encontre jogos por título ou código e ordene por nome, tamanho ou data de postagem.">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" type="image/x-icon" href="fav.ico">
@@ -38,15 +38,15 @@
   <section class="hero">
     <div class="container">
       <p class="eyebrow">// central de downloads</p>
-      <h1>Patches disponíveis</h1>
-      <p class="muted">Escolha um Patch e baixe a versão desejada.</p>
+      <h1>Jogos disponíveis</h1>
+      <p class="muted">Escolha um jogo e baixe a versão desejada.</p>
     </div>
   </section>
 
   <!-- Painel admin -->
   <section id="adminPanel" class="container admin-panel hidden">
     <div class="panel-head">
-      <h2 id="formTitle">Novo Patch</h2>
+      <h2 id="formTitle">Novo jogo</h2>
       <button id="btnLogout" class="btn btn-ghost">Sair</button>
     </div>
     <form id="patchForm">
@@ -54,13 +54,13 @@
       <div class="grid-2">
         <label>Título<input id="fTitle" required></label>
         <label>Código único<input id="fCode" required placeholder="EX: PTH-2026-001"></label>
-        <label>URL da capa (DVD)<input id="fCover" type="url" required placeholder="https://..."></label>
+        <label>URL da capa<input id="fCover" type="url" required placeholder="https://..."></label>
         <div class="size-row">
           <label>Tamanho<input id="fSize" type="number" step="0.01" min="0" required></label>
           <label>Unidade<select id="fUnit"><option>GB</option><option>MB</option></select></label>
         </div>
       </div>
-      <label class="check"><input type="checkbox" id="fVisible" checked> Exibir este Patch na tela principal <small>(desmarcado = fica salvo apenas para gerar ZIP)</small></label>
+      <label class="check"><input type="checkbox" id="fVisible" checked> Exibir este jogo na tela principal <small>(desmarcado = fica salvo apenas para gerar ZIP)</small></label>
       <label>Descrição<textarea id="fDesc" rows="4" required></textarea></label>
       <fieldset class="zip-options">
         <legend>Página ZIP</legend>
@@ -78,7 +78,7 @@
         <output id="colorValue" class="color-value">RGB(34, 224, 122) · #22e07a</output>
         <label class="check"><input id="fProtected" type="checkbox">Exigir senha na página ZIP</label>
         <div id="passwordFields" class="hidden">
-          <label>Senha do Patch<input id="fPatchPassword" type="password" autocomplete="new-password" disabled></label>
+          <label>Senha do jogo<input id="fPatchPassword" type="password" autocomplete="new-password" disabled></label>
           <p id="passwordHint" class="muted"></p>
           <p class="muted security-note">Proteção básica no navegador; não impede acesso técnico aos arquivos ou ao banco público. Use uma senha exclusiva.</p>
         </div>
@@ -90,14 +90,14 @@
       <div id="linksList"></div>
       <div class="form-actions">
         <button type="button" id="btnCancel" class="btn btn-ghost">Cancelar edição</button>
-        <button type="submit" class="btn btn-ghost">Salvar Patch</button>
+        <button type="submit" class="btn btn-ghost">Salvar jogo</button>
         <button type="submit" id="btnSaveGen" class="btn btn-primary">Salvar e gerar página (ZIP)</button>
       </div>
     </form>
   </section>
 
   <main class="container">
-    <div id="status" class="status">Carregando patches...</div>
+    <div id="status" class="status">Carregando jogos...</div>
     <div id="grid" class="grid"></div>
   </main>
 

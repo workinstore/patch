@@ -38,7 +38,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const rootRef = firebase.database().ref();
 const db = rootRef.child("patches");
-const vault = rootRef.child("vault"); /* links de Patches com senha: vault/{id}/{chave da senha} */
+const vault = rootRef.child("vault"); /* links de jogos com senha: vault/{id}/{chave da senha} */
 
 const $ = (id) => document.getElementById(id);
 let patches = {};
@@ -88,7 +88,7 @@ $("loginForm").onsubmit = async (e) => {
 };
 
 /* ===== BANCO DE DADOS =====
-   Visitantes só podem ler os Patches visíveis (consulta exigida pelas regras).
+   Visitantes só podem ler os jogos visíveis (consulta exigida pelas regras).
    O admin lê tudo. */
 let liveQuery = null, migrated = false;
 function subscribe() {
@@ -102,7 +102,7 @@ function subscribe() {
   }, err => { $("status").textContent = "Erro ao carregar: " + err.message; $("status").classList.remove("hidden"); });
 }
 
-/* Converte automaticamente Patches do formato antigo (hash no banco) para o novo. */
+/* Converte automaticamente jogos do formato antigo (hash no banco) para o novo. */
 async function migrateLegacy() {
   const updates = {};
   Object.entries(patches).forEach(([id, p]) => {
@@ -118,12 +118,21 @@ async function migrateLegacy() {
   if (Object.keys(updates).length) await rootRef.update(updates);
 }
 
-/* Admin: lê a chave e os links guardados no cofre de um Patch com senha. */
+/* Admin: lê a chave e os links guardados no cofre de um jogo com senha. */
 async function readVault(id) {
   const snap = await vault.child(id).once("value");
   const entries = Object.entries(snap.val() || {});
   return entries.length ? { key: entries[0][0], links: entries[0][1].links || [] } : null;
 }
+
+
+/* ===== RÓTULO DA MÍDIA (DVD / CD) =====
+   CD somente quando a capa é quadrada. */
+function mediaLabel(p) { return "DVD"; }
+window.checkCover = function (img) {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (w && h && Math.abs(w / h - 1) <= 0.08 && img.parentElement) img.parentElement.dataset.label = "CD";
+};
 
 function render() {
   const q = $("search").value.trim().toLowerCase();
@@ -132,12 +141,12 @@ function render() {
     .filter(([, p]) => !q || p.title?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q));
   const list = PatchTools.sortPatches(matches, $("sortOrder").value);
 
-  $("status").textContent = list.length ? "" : (q ? "Nenhum resultado encontrado." : "Nenhum Patch publicado ainda.");
+  $("status").textContent = list.length ? "" : (q ? "Nenhum resultado encontrado." : "Nenhum jogo publicado ainda.");
   $("status").classList.toggle("hidden", !!list.length);
 
   $("grid").innerHTML = list.map(([id, p]) => `
     <article class="card" data-id="${id}">
-      <div class="dvd"><img src="${safeUrl(p.cover)}" alt="${esc(p.title)}" loading="lazy"></div>
+      <div class="dvd" data-label="${mediaLabel(p)}"><img src="${safeUrl(p.cover)}" alt="${esc(p.title)}" loading="lazy" onload="checkCover(this)"></div>
       ${isAdmin ? `<span class="badge ${p.visible === false ? "badge-off" : ""}">${p.visible === false ? "Oculto · só ZIP" : "Visível"}</span>` : ""}
       <h3 title="${esc(p.title)}">${esc(p.title)}</h3>
       <div class="meta"><span class="code">${esc(p.code)}</span><span class="size">${esc(p.size)} ${esc(p.unit)}</span></div>
@@ -154,7 +163,7 @@ $("grid").onclick = (e) => {
   const edit = e.target.dataset.edit, del = e.target.dataset.del;
   if (e.target.dataset.gen) return generatePage(e.target.dataset.gen);
   if (edit) return startEdit(edit);
-  if (del) { if (confirm("Excluir este Patch?")) rootRef.update({ ["patches/" + del]: null, ["vault/" + del]: null }).catch(err => alert("Erro ao excluir: " + err.message)); return; }
+  if (del) { if (confirm("Excluir este jogo?")) rootRef.update({ ["patches/" + del]: null, ["vault/" + del]: null }).catch(err => alert("Erro ao excluir: " + err.message)); return; }
   const card = e.target.closest(".card");
   if (card) openDetail(card.dataset.id);
 };
@@ -171,7 +180,7 @@ function openDetail(id) {
   const locked = PatchTools.validLock(p.locked);
   $("detailContent").innerHTML = `
     <div class="detail">
-      <div class="dvd"><img src="${safeUrl(p.cover)}" alt="${esc(p.title)}"></div>
+      <div class="dvd" data-label="${mediaLabel(p)}"><img src="${safeUrl(p.cover)}" alt="${esc(p.title)}" onload="checkCover(this)"></div>
       <div>
         <h2>${esc(p.title)}</h2>
         <div class="meta" style="justify-content:flex-start;gap:14px">
@@ -179,7 +188,7 @@ function openDetail(id) {
         </div>
         <p class="desc">${esc(p.desc)}</p>
         <div class="downloads" id="detailDownloads">${locked ? (isAdmin ? `<p class="muted">Carregando links...</p>` : `
-          <h4>Patch protegido</h4>
+          <h4>Jogo protegido</h4>
           <form id="unlockForm">
             <label>Senha de acesso<input id="unlockPass" type="password" autocomplete="current-password" required></label>
             <button class="btn btn-primary" id="unlockBtn" type="submit" style="margin-top:10px">Liberar downloads</button>
@@ -250,7 +259,7 @@ function syncPasswordFields() {
   $("passwordFields").classList.toggle("hidden", !enabled);
   $("fPatchPassword").disabled = !enabled;
   $("fPatchPassword").required = enabled && !editingLock;
-  $("passwordHint").textContent = editingLock ? "Deixe em branco para manter a senha atual; preencha para trocar." : "Informe a senha que será exigida para abrir o Patch.";
+  $("passwordHint").textContent = editingLock ? "Deixe em branco para manter a senha atual; preencha para trocar." : "Informe a senha que será exigida para abrir o jogo.";
   if (!enabled) $("fPatchPassword").value = "";
 }
 $("fProtected").onchange = syncPasswordFields;
@@ -263,7 +272,7 @@ function resetForm() {
   editingLock = null;
   setZipColor(PatchTools.GREEN);
   syncPasswordFields();
-  $("formTitle").textContent = "Novo Patch";
+  $("formTitle").textContent = "Novo jogo";
 }
 $("btnCancel").onclick = resetForm;
 
@@ -299,7 +308,7 @@ $("patchForm").onsubmit = async (e) => {
   const id = $("patchId").value;
   const code = $("fCode").value.trim();
   const dup = Object.entries(patches).find(([k, p]) => k !== id && p.code?.toLowerCase() === code.toLowerCase());
-  if (dup) { alert("Já existe um Patch com este código."); return; }
+  if (dup) { alert("Já existe um jogo com este código."); return; }
 
   const links = [...document.querySelectorAll(".link-row")]
     .map(r => ({ label: r.querySelector(".l-label").value.trim(), url: r.querySelector(".l-url").value.trim() }))
@@ -314,7 +323,7 @@ $("patchForm").onsubmit = async (e) => {
   if ($("fProtected").checked) {
     if ($("fPatchPassword").value) ({ lock, key } = await PatchTools.createLock($("fPatchPassword").value));
     else if (id && editingLock) { const v = await readVault(id); lock = editingLock; key = v && v.key; }
-    if (!lock || !key) throw new Error("Informe uma nova senha para o Patch.");
+    if (!lock || !key) throw new Error("Informe uma nova senha para o jogo.");
   }
   const data = {
     title: $("fTitle").value.trim(),
@@ -330,21 +339,21 @@ $("patchForm").onsubmit = async (e) => {
     updatedAt: Date.now(),
     createdAt: (id && patches[id] && patches[id].createdAt) || Date.now()
   };
-    /* Patch e cofre gravados juntos; senha e hash nunca vão para o banco. */
+    /* Jogo e cofre gravados juntos; senha e hash nunca vão para o banco. */
     await rootRef.update({
       ["patches/" + savedId]: data,
       ["vault/" + savedId]: lock ? { [key]: { links } } : null
     });
     const gen = e.submitter && e.submitter.id === "btnSaveGen";
     resetForm();
-    if (gen) await generatePage(savedId, data); else alert("Patch salvo com sucesso!");
+    if (gen) await generatePage(savedId, data); else alert("Jogo salvo com sucesso!");
   } catch (err) { alert("Erro ao salvar: " + err.message); }
   finally { saveButtons.forEach(button => button.disabled = false); $("patchForm").removeAttribute("aria-busy"); }
 };
 
 resetForm();
 
-const BASE_PAGE_CSS = ":root{--bg:#07090a;--surface:#0e1211;--surface-2:#141a18;--border:#1f2a26;--text:#e6efe9;--muted:#8a9a92;--green:#22e07a;--green-dim:#15a85a;--glow:rgba(34,224,122,.25)}\n*{box-sizing:border-box;margin:0;padding:0}\nbody{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:17px;line-height:1.5;min-height:100vh;display:flex;flex-direction:column;background-image:radial-gradient(ellipse at top,rgba(34,224,122,.08),transparent 55%)}\nmain{flex:1}\na{color:inherit;text-decoration:none}\n.wrap{width:min(1000px,92%);margin:0 auto}\n.topbar{border-bottom:1px solid var(--border);height:64px;display:flex;align-items:center}\n.brand{font-weight:700;font-size:1.4rem;letter-spacing:2px}\n.brand b,.brand span{color:var(--green)}\n.patch{display:grid;grid-template-columns:300px 1fr;gap:40px;padding:48px 0 60px}\n.dvd{position:relative;aspect-ratio:135/190;border-radius:4px;overflow:hidden;background:#000;box-shadow:0 20px 40px -10px var(--glow),0 6px 18px rgba(0,0,0,.6);border:1px solid var(--border)}\n.dvd::before{content:\"\";position:absolute;left:0;top:0;bottom:0;width:7%;background:linear-gradient(90deg,rgba(255,255,255,.15),rgba(0,0,0,.4));z-index:1}\n.dvd::after{content:\"DVD\";position:absolute;top:0;left:0;right:0;background:var(--green);color:#03140a;font-weight:700;font-size:12px;letter-spacing:4px;text-align:center;padding:3px 0;z-index:2}\n.dvd img{width:100%;height:100%;object-fit:cover;display:block}\n.eyebrow{font-family:'JetBrains Mono',monospace;color:var(--green);font-size:13px;margin-bottom:6px}\nh1{font-size:clamp(2rem,5vw,2.8rem);line-height:1.1}\n.meta{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:14px}\n.code{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--green);background:rgba(34,224,122,.08);border:1px solid rgba(34,224,122,.25);padding:3px 10px;border-radius:4px}\n.size{color:var(--muted);font-weight:600}\n.desc{color:var(--muted);white-space:pre-line;margin:20px 0 28px}\n.downloads h2{color:var(--green);letter-spacing:2px;text-transform:uppercase;font-size:15px;margin-bottom:12px}\n.dl{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--surface-2);transition:all .2s}\n.dl:hover{border-color:var(--green);box-shadow:0 0 20px var(--glow);transform:translateX(4px)}\n.dl span{font-weight:600}\n.dl b{background:var(--green);color:#03140a;padding:5px 12px;border-radius:6px;font-size:13px;letter-spacing:1px;white-space:nowrap}\n.muted{color:var(--muted)}\n.footer{border-top:1px solid var(--border);padding:20px 0;color:var(--muted);font-size:14px;text-align:center}\n@media(max-width:700px){.patch{grid-template-columns:1fr;gap:24px;padding:28px 0 40px}.dvd{max-width:220px;margin:0 auto;width:100%}}\n.hidden{display:none!important}\n.status{text-align:center;color:var(--muted);padding:80px 0}\nbody{-webkit-user-select:none;user-select:none}\n";
+const BASE_PAGE_CSS = ":root{--bg:#07090a;--surface:#0e1211;--surface-2:#141a18;--border:#1f2a26;--text:#e6efe9;--muted:#8a9a92;--green:#22e07a;--green-dim:#15a85a;--glow:rgba(34,224,122,.25)}\n*{box-sizing:border-box;margin:0;padding:0}\nbody{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:17px;line-height:1.5;min-height:100vh;display:flex;flex-direction:column;background-image:radial-gradient(ellipse at top,rgba(34,224,122,.08),transparent 55%)}\nmain{flex:1}\na{color:inherit;text-decoration:none}\n.wrap{width:min(1000px,92%);margin:0 auto}\n.topbar{border-bottom:1px solid var(--border);height:64px;display:flex;align-items:center}\n.brand{font-weight:700;font-size:1.4rem;letter-spacing:2px}\n.brand b,.brand span{color:var(--green)}\n.patch{display:grid;grid-template-columns:300px 1fr;gap:40px;padding:48px 0 60px}\n.dvd{position:relative;aspect-ratio:135/190;border-radius:4px;overflow:hidden;background:#000;box-shadow:0 20px 40px -10px var(--glow),0 6px 18px rgba(0,0,0,.6);border:1px solid var(--border)}\n.dvd::after{content:attr(data-label);position:absolute;top:0;left:0;right:0;background:var(--green);color:#03140a;font-weight:700;font-size:12px;letter-spacing:4px;text-align:center;padding:3px 0;z-index:2}\n.dvd img{width:100%;height:100%;object-fit:cover;display:block}\n.eyebrow{font-family:'JetBrains Mono',monospace;color:var(--green);font-size:13px;margin-bottom:6px}\nh1{font-size:clamp(2rem,5vw,2.8rem);line-height:1.1}\n.meta{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:14px}\n.code{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--green);background:rgba(34,224,122,.08);border:1px solid rgba(34,224,122,.25);padding:3px 10px;border-radius:4px}\n.size{color:var(--muted);font-weight:600}\n.desc{color:var(--muted);white-space:pre-line;margin:20px 0 28px}\n.downloads h2{color:var(--green);letter-spacing:2px;text-transform:uppercase;font-size:15px;margin-bottom:12px}\n.dl{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--surface-2);transition:all .2s}\n.dl:hover{border-color:var(--green);box-shadow:0 0 20px var(--glow);transform:translateX(4px)}\n.dl span{font-weight:600}\n.dl b{background:var(--green);color:#03140a;padding:5px 12px;border-radius:6px;font-size:13px;letter-spacing:1px;white-space:nowrap}\n.muted{color:var(--muted)}\n.footer{border-top:1px solid var(--border);padding:20px 0;color:var(--muted);font-size:14px;text-align:center}\n@media(max-width:700px){.patch{grid-template-columns:1fr;gap:24px;padding:28px 0 40px}.dvd{max-width:220px;margin:0 auto;width:100%}}\n.hidden{display:none!important}\n.status{text-align:center;color:var(--muted);padding:80px 0}\nbody{-webkit-user-select:none;user-select:none}\n";
 
 const PAGE_CSS = BASE_PAGE_CSS
   .replaceAll("rgba(34,224,122,.08)", "var(--accent-soft)")
@@ -367,7 +376,7 @@ body{background-image:none}h1{font-size:2.8rem;overflow-wrap:anywhere;letter-spa
 `;
 
 /* ===== GERADOR DE PÁGINA INDIVIDUAL (ZIP com HTML, CSS e JS) =====
-   A página gerada NÃO contém senha, hash nem dados do Patch: guarda apenas as
+   A página gerada NÃO contém senha, hash nem dados do jogo: guarda apenas as
    credenciais padrão do Firebase e o ID, e busca tudo no Realtime Database ao abrir. */
 const GUARD_CODE = "/* ===== PROTE\u00c7\u00c3O B\u00c1SICA (bot\u00e3o direito e atalhos) ===== */\n(function () {\n  document.addEventListener(\"contextmenu\", function (e) { e.preventDefault(); });\n  document.addEventListener(\"dragstart\", function (e) { if (e.target.tagName === \"IMG\") e.preventDefault(); });\n  document.addEventListener(\"keydown\", function (e) {\n    var k = (e.key || \"\").toLowerCase(), c = e.ctrlKey || e.metaKey;\n    if (k === \"f12\" ||\n        (c && e.shiftKey && [\"i\", \"j\", \"c\", \"k\"].indexOf(k) > -1) ||\n        (c && [\"u\", \"s\", \"p\"].indexOf(k) > -1) ||\n        (e.metaKey && e.altKey && [\"i\", \"j\", \"c\", \"u\"].indexOf(k) > -1)) {\n      e.preventDefault(); e.stopPropagation(); return false;\n    }\n  }, true);\n})();\n";
 async function generatePage(id, fallback) {
@@ -388,16 +397,16 @@ async function generatePage(id, fallback) {
   <header class="topbar"><div class="wrap"><span class="brand"><b>▲</b> Workin' <span>Downloads</span></span></div></header>
   <main class="wrap">
     <form id="accessForm" class="gate hidden">
-      <h1>Patch protegido</h1>
+      <h1>Jogo protegido</h1>
       <label for="accessPassword">Senha de acesso</label>
       <input id="accessPassword" type="password" autocomplete="current-password" required>
-      <button id="accessButton" type="submit">Acessar Patch</button>
+      <button id="accessButton" type="submit">Acessar jogo</button>
       <div id="verifyState" class="verify-state hidden" role="status"><span class="spinner" aria-hidden="true"></span>Verificando...</div>
       <p id="accessError" class="error" role="alert"></p>
     </form>
     <p id="status" class="status" role="status">Carregando...</p>
     <section class="patch hidden" id="patch">
-      <div class="dvd"><img id="cover" alt=""></div>
+      <div class="dvd" id="media" data-label="DVD"><img id="cover" alt=""></div>
       <div class="info">
         <p class="eyebrow">// download oficial</p>
         <h1 id="title"></h1>
@@ -418,7 +427,7 @@ async function generatePage(id, fallback) {
   zip.file("style.css", PAGE_CSS);
   zip.file("patch-tools.js", "(" + patchToolsExport.toString() + ")();");
   /* O script.js do ZIP leva SOMENTE as credenciais padrão da página principal
-     e o ID do Patch. Senha (hash), cor e demais dados vêm do Realtime Database. */
+     e o ID do jogo. Senha (hash), cor e demais dados vêm do Realtime Database. */
   zip.file("script.js", GUARD_CODE + `
 /* Página gerada pelo Workin' Downloads — senha, cor e dados vêm do Realtime Database */
 var firebaseConfig = ${JSON.stringify(firebaseConfig, null, 2)};
@@ -442,6 +451,11 @@ firebase.initializeApp(firebaseConfig);
   function render(p, links) {
     document.title = p.title + " — Download";
     $("title").textContent = p.title;
+    $("media").setAttribute("data-label", "DVD");
+    $("cover").onload = function () {
+      var w = this.naturalWidth, h = this.naturalHeight;
+      if (w && h && Math.abs(w / h - 1) <= 0.08) $("media").setAttribute("data-label", "CD");
+    };
     $("cover").src = safe(p.cover);
     $("cover").alt = p.title;
     $("code").textContent = p.code;
@@ -464,7 +478,7 @@ firebase.initializeApp(firebaseConfig);
 
   function update() {
     var p = current;
-    if (!p) { $("accessForm").classList.add("hidden"); showStatus("Patch não encontrado ou removido."); return; }
+    if (!p) { $("accessForm").classList.add("hidden"); showStatus("Jogo não encontrado ou removido."); return; }
     PatchTools.applyTheme(p.zipColor);
     if (!PatchTools.validLock(p.locked)) { render(p, p.links || []); return; }
     if (!unlockedLinks) {
@@ -476,7 +490,7 @@ firebase.initializeApp(firebaseConfig);
     render(p, unlockedLinks);
   }
 
-  /* Os links de Patches com senha ficam em vault/{id}/{chave}. A chave só é
+  /* Os links de jogos com senha ficam em vault/{id}/{chave}. A chave só é
      obtida a partir da senha correta; senha errada = caminho inexistente. */
   function openVault(key) {
     return new Promise(function (resolve, reject) {
@@ -493,7 +507,7 @@ firebase.initializeApp(firebaseConfig);
   firebase.database().ref("patches/" + PATCH_ID).on("value", function (snap) {
     current = snap.val();
     update();
-  }, function () { $("accessForm").classList.add("hidden"); showStatus("Erro ao carregar o Patch."); });
+  }, function () { $("accessForm").classList.add("hidden"); showStatus("Erro ao carregar o jogo."); });
 
   $("accessForm").onsubmit = async function (event) {
     event.preventDefault();
